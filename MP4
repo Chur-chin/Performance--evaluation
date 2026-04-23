@@ -1,0 +1,1 @@
+ani.save("wave_simulation.mp4", writer='ffmpeg', fps=20, dpi=200)
