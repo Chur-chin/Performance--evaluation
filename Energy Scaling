@@ -1,0 +1,19 @@
+N = np.logspace(1, 4, 100)
+
+eps_d = 1e-12  # 1 pJ
+eps_w = 1e-15  # 1 fJ
+
+E_digital = eps_d * N**2
+E_wave = eps_w * N
+
+plt.figure(figsize=(6,4))
+plt.loglog(N, E_digital, label="Digital NPU")
+plt.loglog(N, E_wave, label="THz Wave")
+
+plt.fill_between(N, E_wave, E_digital, alpha=0.2)
+
+plt.xlabel("N")
+plt.ylabel("Energy (J)")
+plt.legend()
+plt.title("Energy Scaling Comparison")
+plt.show()
