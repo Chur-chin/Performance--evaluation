@@ -1,0 +1,12 @@
+wave_map = []
+
+for N in range(1,80):
+    wave = compute_wave(N, 0)
+    wave_map.append(wave)
+
+plt.imshow(wave_map, aspect='auto', cmap='viridis')
+plt.xlabel("Position")
+plt.ylabel("N (modes)")
+plt.title("Wave Interference Heatmap")
+plt.colorbar()
+plt.show()
