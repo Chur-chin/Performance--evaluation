@@ -1,0 +1,66 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+# Grid 설정
+Nx, Ny = 200, 80
+dx = 0.05
+dt = 0.01
+
+# Wave number (THz scale abstraction)
+k = 8.0
+alpha = 0.02  # attenuation
+
+# 필드 초기화
+u = np.zeros((Nx, Ny))
+u_prev = np.zeros_like(u)
+
+# Serpentine waveguide mask 생성
+mask = np.zeros_like(u)
+
+for i in range(Nx):
+    center = int(Ny/2 + 15*np.sin(2*np.pi*i/40))
+    mask[i, max(0, center-3):min(Ny, center+3)] = 1
+
+# 초기 source
+for j in range(Ny):
+    if mask[0, j]:
+        u[0, j] = np.sin(j * 0.2)
+
+fig, ax = plt.subplots(figsize=(6,3))
+
+def step(u, u_prev):
+    u_new = np.copy(u)
+    
+    for i in range(1, Nx-1):
+        for j in range(1, Ny-1):
+            if mask[i,j]:
+                lap = (
+                    u[i+1,j] + u[i-1,j] +
+                    u[i,j+1] + u[i,j-1] -
+                    4*u[i,j]
+                ) / dx**2
+                
+                u_new[i,j] = (
+                    2*u[i,j] - u_prev[i,j] +
+                    dt**2 * (lap - k**2 * u[i,j])
+                )
+                
+                # attenuation
+                u_new[i,j] *= np.exp(-alpha * i*dx)
+    
+    return u_new
+
+def update(frame):
+    global u, u_prev
+    
+    u_next = step(u, u_prev)
+    u_prev = u
+    u = u_next
+    
+    ax.clear()
+    ax.imshow(u.T, origin='lower', aspect='auto')
+    ax.set_title(f"THz Wave Propagation (step={frame})")
+
+ani = animation.FuncAnimation(fig, update, frames=150, interval=50)
+ani.save("thz_fem_simulation.gif", writer='pillow', fps=10)
