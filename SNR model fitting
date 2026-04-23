@@ -1,0 +1,37 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+# Ground truth (논문 값)
+A0_true = 12.097
+alpha_true = 0.0241
+beta_true = 0.261
+
+# Synthetic data 생성
+N = np.arange(1, 100)
+SNR_true = A0_true * np.exp(-alpha_true * N) / (N ** beta_true)
+
+# 노이즈 추가 (현실성)
+noise = np.random.normal(0, 0.05, size=N.shape)
+SNR_noisy = SNR_true * (1 + noise)
+
+# 모델 정의
+def snr_model(N, A0, alpha, beta):
+    return A0 * np.exp(-alpha * N) / (N ** beta)
+
+# Curve fitting
+params, _ = curve_fit(snr_model, N, SNR_noisy, p0=[10, 0.02, 0.3])
+A0_fit, alpha_fit, beta_fit = params
+
+print(f"Fitted: A0={A0_fit:.3f}, alpha={alpha_fit:.4f}, beta={beta_fit:.3f}")
+
+# Plot
+plt.figure(figsize=(6,4))
+plt.scatter(N, SNR_noisy, label="Data", s=10)
+plt.plot(N, snr_model(N, *params), 'r', label="Fit")
+plt.axhline(1, linestyle='--', color='gray', label='SNR=1')
+plt.xlabel("N")
+plt.ylabel("SNR")
+plt.legend()
+plt.title("SNR vs N (Serpentine THz System)")
+plt.show()
