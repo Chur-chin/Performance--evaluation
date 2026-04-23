@@ -1,0 +1,3 @@
+Nc = 59.3
+
+ax[1].axvline(Nc, linestyle='--', color='red')
