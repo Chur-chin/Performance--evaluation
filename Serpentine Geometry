@@ -1,0 +1,29 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
+# Serpentine path 생성
+t = np.linspace(0, 10, 500)
+x = t
+y = np.sin(2*np.pi * t / 2)
+
+fig, ax = plt.subplots(figsize=(6,4))
+
+def update(frame):
+    ax.clear()
+    
+    N = frame + 1
+    
+    # 감쇠 포함 wave amplitude
+    amplitude = np.exp(-0.02 * N)
+    
+    wave = amplitude * np.sin(5*t - frame*0.3)
+    
+    ax.plot(x, y + 0.2*wave)
+    ax.set_title(f"Serpentine Wave Propagation (N={N})")
+    ax.set_xlim(0,10)
+    ax.set_ylim(-2,2)
+
+ani = animation.FuncAnimation(fig, update, frames=80, interval=80)
+
+ani.save("serpentine_wave.gif", writer='pillow', fps=12)
