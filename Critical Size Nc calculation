@@ -1,0 +1,7 @@
+from scipy.optimize import fsolve
+
+def equation(N):
+    return A0_fit * np.exp(-alpha_fit * N) / (N ** beta_fit) - 1
+
+Nc = fsolve(equation, 50)[0]
+print(f"Critical size Nc ≈ {Nc:.2f}")
