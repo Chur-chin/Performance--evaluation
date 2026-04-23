@@ -1,0 +1,15 @@
+y = np.log(SNR_noisy) + beta_fit * np.log(N)
+
+coef = np.polyfit(N, y, 1)
+slope, intercept = coef
+
+print(f"Slope ≈ {-slope:.4f} (should be alpha)")
+
+plt.figure(figsize=(6,4))
+plt.scatter(N, y, s=10)
+plt.plot(N, np.polyval(coef, N), 'r')
+
+plt.xlabel("N")
+plt.ylabel("log SNR + β log N")
+plt.title("Linearized SNR Model")
+plt.show()
