@@ -1,0 +1,14 @@
+N = np.arange(1, 1000)
+
+C_digital = N**2
+C_wave = np.ones_like(N)
+
+plt.figure(figsize=(6,4))
+plt.plot(N, C_digital, label="Digital O(N^2)")
+plt.plot(N, C_wave, label="Wave O(1)")
+
+plt.xlabel("N")
+plt.ylabel("Complexity")
+plt.legend()
+plt.title("Computational Complexity Comparison")
+plt.show()
