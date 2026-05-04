@@ -1,0 +1,47 @@
+import numpy as np
+
+def simulate_chiral_attractor(steps=200, size=128):
+    # 1. 초기화: Random Polarization Field
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    
+    # 파라미터 설정
+    anisotropy = 0.1  # LC 비등방성
+    berry_const = 0.05 # 위상 권선 상수
+    chirality = 0.2    # L/R 선택성
+    
+    history = []
+
+    for t in range(steps):
+        # (A) Chirality-dependent Phase Rotation
+        # LCP/RCP 분리 및 위상 가중치 부여
+        EL = Ex + 1j*Ey
+        ER = Ex - 1j*Ey
+        
+        # Chirality에 의한 비대칭 누적 (DNA 모사)
+        EL *= np.exp(1j * (berry_const + chirality))
+        ER *= np.exp(1j * (berry_const - chirality))
+        
+        # 다시 Cartesian으로 복원
+        Ex_new = 0.5 * (EL + ER)
+        Ey_new = -0.5j * (EL - ER)
+        
+        # (B) Anisotropic Propagation (액정 효과)
+        # x 방향과 y 방향의 확산 속도 차이 적용
+        Ex_new = apply_anisotropy(Ex_new, ratio=1.0 + anisotropy)
+        Ey_new = apply_anisotropy(Ey_new, ratio=1.0 - anisotropy)
+        
+        # (C) Recursive Attractor Logic
+        # 이전 상태와의 간섭 (Coherence Persistence)
+        Ex = 0.8 * Ex + 0.2 * Ex_new
+        Ey = 0.8 * Ey + 0.2 * Ey_new
+        
+        # (D) Normalization (에너지 발산 방지, Condensation 모사)
+        norm = np.sqrt(np.mean(np.abs(Ex)**2 + np.abs(Ey)**2))
+        Ex /= norm
+        Ey /= norm
+        
+        if t % 10 == 0:
+            history.append(np.abs(Ex)**2 + np.abs(Ey)**2)
+            
+    return history
