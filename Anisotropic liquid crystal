@@ -1,0 +1,212 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ============================================================
+# GRID
+# ============================================================
+
+N = 300
+L = 15
+
+x = np.linspace(-L, L, N)
+y = np.linspace(-L, L, N)
+
+X, Y = np.meshgrid(x, y)
+
+R = np.sqrt(X**2 + Y**2)
+TH = np.arctan2(Y, X)
+
+# ============================================================
+# ANISOTROPIC LIQUID CRYSTAL
+# ============================================================
+
+eps_x = 1.0
+eps_y = 2.5
+
+# ============================================================
+# EFFECTIVE WAVEVECTOR
+# ============================================================
+
+kx = X / (R + 1e-9)
+ky = Y / (R + 1e-9)
+
+k_eff = np.sqrt(
+    (kx**2)/eps_x +
+    (ky**2)/eps_y
+)
+
+# ============================================================
+# PARAMETERS
+# ============================================================
+
+omega = 3.0
+
+alpha = 2.0
+beta = 0.7
+
+berry_strength = 2.5
+
+recursive_strength = 0.8
+
+chirality_strength = 1.2
+
+noise_amp = 0.15
+
+# ============================================================
+# LEFT CIRCULAR POLARIZATION
+# ============================================================
+
+def left_polarization(t):
+
+    noise = noise_amp * np.random.randn(N, N)
+
+    phi = (
+        k_eff * R
+        - omega * t
+    )
+
+    # DNA-like chirality
+    phi += chirality_strength * TH
+
+    # serpentine recursive modulation
+    phi += alpha * np.sin(beta * R + 2 * TH)
+
+    # Berry-like phase accumulation
+    phi += berry_strength * TH
+
+    # recursive echo memory
+    phi += recursive_strength * np.sin(0.25 * t - R)
+
+    phi += noise
+
+    psi = np.exp(1j * phi)
+
+    return psi
+
+# ============================================================
+# RIGHT CIRCULAR POLARIZATION
+# ============================================================
+
+def right_polarization(t):
+
+    noise = noise_amp * np.random.randn(N, N)
+
+    phi = (
+        k_eff * R
+        - omega * t
+    )
+
+    # opposite chirality
+    phi -= chirality_strength * TH
+
+    # opposite serpentine winding
+    phi += alpha * np.sin(beta * R - 2 * TH)
+
+    # opposite Berry phase
+    phi -= berry_strength * TH
+
+    # recursive echo
+    phi += recursive_strength * np.sin(0.25 * t - R)
+
+    phi += noise
+
+    psi = np.exp(1j * phi)
+
+    return psi
+
+# ============================================================
+# INITIAL STATES
+# ============================================================
+
+psiL0 = left_polarization(0)
+psiR0 = right_polarization(0)
+
+# ============================================================
+# STORAGE
+# ============================================================
+
+CL = []
+CR = []
+
+# ============================================================
+# TIME EVOLUTION
+# ============================================================
+
+TMAX = 160
+
+for t in range(TMAX):
+
+    psiL = left_polarization(t)
+    psiR = right_polarization(t)
+
+    # coherence overlap
+    cL = np.abs(np.sum(np.conj(psiL0) * psiL))
+    cR = np.abs(np.sum(np.conj(psiR0) * psiR))
+
+    CL.append(cL)
+    CR.append(cR)
+
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+CL = np.array(CL)
+CR = np.array(CR)
+
+CL /= np.max(CL)
+CR /= np.max(CR)
+
+# ============================================================
+# PLOT 1 : COHERENCE MEMORY
+# ============================================================
+
+plt.figure(figsize=(10,6))
+
+plt.plot(
+    CL,
+    linewidth=2,
+    label='Left Chirality'
+)
+
+plt.plot(
+    CR,
+    linewidth=2,
+    label='Right Chirality'
+)
+
+plt.xlabel('time')
+plt.ylabel('coherence overlap')
+
+plt.title('Polarization Topology Memory')
+
+plt.legend()
+
+plt.grid(alpha=0.3)
+
+plt.show()
+
+# ============================================================
+# FIELD SNAPSHOT
+# ============================================================
+
+psi_final = left_polarization(120)
+
+I = np.abs(psi_final)**2
+
+plt.figure(figsize=(8,8))
+
+plt.imshow(
+    I,
+    extent=[-L,L,-L,L],
+    origin='lower',
+    cmap='inferno'
+)
+
+plt.colorbar(label='Intensity')
+
+plt.title('Recursive Chirality Attractor Field')
+
+plt.xlabel('x')
+plt.ylabel('y')
+
+plt.show()
