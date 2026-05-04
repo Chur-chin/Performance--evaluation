@@ -1,0 +1,68 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def run_stability_test(chirality_val, steps=300, size=64):
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+
+    # 물리 파라미터
+    anisotropy = 1.1     
+    berry_phase = 0.05    
+    feedback = 0.7       
+    
+    s3_history = []
+
+    for t in range(steps):
+        # --- [Phase Noise 주입] ---
+        # 150번째 step에서 시스템에 강제적인 위상 흐트러짐 주입
+        if t == 150:
+            noise = (np.random.rand(size, size) - 0.5) * 5.0 # 강한 노이즈
+            Ex *= np.exp(1j * noise)
+            Ey *= np.exp(1j * noise)
+
+        # L/R Circular Polarization 분리
+        EL = Ex + 1j*Ey
+        ER = Ex - 1j*Ey
+        
+        # Chirality 적용 (전달받은 chirality_val 부호에 따라 결정)
+        EL *= np.exp(1j * (berry_phase + chirality_val))
+        ER *= np.exp(1j * (berry_phase - chirality_val))
+        
+        # Propagation & Feedback
+        Ex_new = 0.5 * (EL + ER) * anisotropy
+        Ey_new = -0.5j * (EL - ER) / anisotropy
+        
+        Ex = (1 - feedback) * Ex + feedback * Ex_new
+        Ey = (1 - feedback) * Ey + feedback * Ey_new
+        
+        # 정규화 (Condensation 모사)
+        norm = np.sqrt(np.abs(Ex)**2 + np.abs(Ey)**2)
+        Ex /= (np.mean(norm) + 1e-9); Ey /= (np.mean(norm) + 1e-9)
+
+        # Stokes S3 (Circular Polarization Degree)
+        I = np.mean(np.abs(Ex)**2 + np.abs(Ey)**2)
+        S3 = np.mean(2 * np.imag(Ex * np.conj(Ey))) / I
+        s3_history.append(S3)
+        
+    return s3_history
+
+# 1. Chirality 부호 반전 테스트 (+0.1 vs -0.1)
+pos_traj = run_stability_test(0.1)
+neg_traj = run_stability_test(-0.1)
+
+# 시각화
+plt.figure(figsize=(12, 6))
+plt.plot(pos_traj, label='Chirality: +0.1 (Left-handed)', color='blue')
+plt.plot(neg_traj, label='Chirality: -0.1 (Right-handed)', color='red')
+
+# 노이즈 주입 시점 표시
+plt.axvline(150, color='black', linestyle='--', alpha=0.5)
+plt.text(152, 0.5, "Phase Noise Injection", fontsize=10, color='black')
+
+plt.title("Attractor Stability & Chirality Symmetry Test")
+plt.xlabel("Iteration Steps")
+plt.ylabel("S3 (Circular Polarization)")
+plt.ylim(-1.1, 1.1)
+plt.legend()
+plt.grid(True, alpha=0.2)
+plt.show()
