@@ -1,0 +1,71 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def run_advanced_simulation(steps=300, size=64):
+    # 초기 상태: 완전히 무작위인 편광 상태 필드
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+
+    # 물리 파라미터 (문서.docx 기반)
+    anisotropy = 1.1     # 액정 비등방성
+    berry_phase = 0.05    # Berry-like winding
+    chirality_idx = 0.08  # DNA-like chirality (L/R 차이)
+    feedback = 0.6       # Recursive echo 강도
+
+    s1_history, s2_history, s3_history = [], [], []
+
+    for t in range(steps):
+        # 1. L/R Circular Polarization 분리 및 위상 누적
+        EL = Ex + 1j*Ey
+        ER = Ex - 1j*Ey
+        EL *= np.exp(1j * (berry_phase + chirality_idx))
+        ER *= np.exp(1j * (berry_phase - chirality_idx))
+        
+        # 2. 비등방성 전파 (Anisotropic LC 효과)
+        Ex_new = 0.5 * (EL + ER) * anisotropy
+        Ey_new = -0.5j * (EL - ER) / anisotropy
+        
+        # 3. Recursive Feedback (Memory)
+        Ex = (1 - feedback) * Ex + feedback * Ex_new
+        Ey = (1 - feedback) * Ey + feedback * Ey_new
+        
+        # 에너지 정규화 (Condensation 모사)[cite: 2]
+        norm = np.sqrt(np.abs(Ex)**2 + np.abs(Ey)**2)
+        Ex /= (np.mean(norm) + 1e-9)
+        Ey /= (np.mean(norm) + 1e-9)
+
+        # 4. Stokes Parameters 계산 (푸앵카레 구체 매핑용)
+        I = np.mean(np.abs(Ex)**2 + np.abs(Ey)**2)
+        S1 = np.mean(np.abs(Ex)**2 - np.abs(Ey)**2) / I
+        S2 = np.mean(2 * np.real(Ex * np.conj(Ey))) / I
+        S3 = np.mean(2 * np.imag(Ex * np.conj(Ey))) / I
+        
+        s1_history.append(S1); s2_history.append(S2); s3_history.append(S3)
+
+    return s1_history, s2_history, s3_history, np.abs(Ex)**2 + np.abs(Ey)**2
+
+# 시뮬레이션 실행
+s1, s2, s3, final_intensity = run_advanced_simulation()
+
+# 시각화: 푸앵카레 구체 (Poincaré Sphere)
+fig = plt.figure(figsize=(12, 6))
+ax = fig.add_subplot(121, projection='3d')
+
+# 구체 그리기
+u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
+x = np.cos(u)*np.sin(v)
+y = np.sin(u)*np.sin(v)
+z = np.cos(v)
+ax.plot_wireframe(x, y, z, color="lightgrey", alpha=0.3)
+
+# 편광 상태의 이동 궤적 (Attractor 확인)
+ax.scatter(s1, s2, s3, c=range(len(s1)), cmap='jet', s=10)
+ax.set_title("Poincaré Sphere Trajectory")
+ax.set_xlabel("S1 (Linear H/V)"); ax.set_ylabel("S2 (Linear D/A)"); ax.set_zlabel("S3 (L/R Circular)")
+
+# 강도 맵 출력
+ax2 = fig.add_subplot(122)
+ax2.imshow(final_intensity, cmap='magma')
+ax2.set_title("Final Intensity (Condensation)")
+plt.show()
