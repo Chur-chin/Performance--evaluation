@@ -1,0 +1,63 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+def apply_anisotropy(field, ratio):
+    """액정의 비등방성을 모사하여 x/y 방향의 확산 속도를 조절합니다."""
+    # Fourier Transform을 이용한 단순 확산 모델
+    freq = np.fft.fftfreq(field.shape[0])
+    kx, ky = np.meshgrid(freq, freq)
+    # 비등방성 필터링 (특정 방향으로의 전파 우세)
+    kernel = np.exp(-0.5 * (kx**2 * ratio + ky**2 / ratio))
+    f_field = np.fft.fft2(field)
+    return np.fft.ifft2(f_field * kernel)
+
+def run_simulation(steps=100, size=64):
+    # 1. 초기 상태: 무작위 편광 (Jones Vector)
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+
+    # 파라미터 (문서.docx의 핵심 개념 반영)
+    anisotropy = 1.2    # LC 비등방성 (x/y 차이)
+    berry_phase = 0.1   # Geometric phase winding
+    chirality_idx = 0.05 # L/R 선택성 (DNA chirality)
+    feedback = 0.7      # Recursive cavity echo 강도
+
+    for t in range(steps):
+        # (A) L/R 분리 및 Berry-like Phase 적용
+        EL = Ex + 1j*Ey
+        ER = Ex - 1j*Ey
+        
+        # Chirality에 따른 비대칭적 위상 누적
+        EL *= np.exp(1j * (berry_phase + chirality_idx))
+        ER *= np.exp(1j * (berry_phase - chirality_idx))
+        
+        # (B) Cartesian 복원 및 액정 비등방성 전파
+        Ex_new = apply_anisotropy(0.5 * (EL + ER), anisotropy)
+        Ey_new = apply_anisotropy(-0.5j * (EL - ER), 1/anisotropy)
+        
+        # (C) Recursive Attractor Logic (Memory)
+        Ex = (1 - feedback) * Ex + feedback * Ex_new
+        Ey = (1 - feedback) * Ey + feedback * Ey_new
+        
+        # (D) Normalization (에너지 보존 및 Condensation 유도)
+        mag = np.sqrt(np.abs(Ex)**2 + np.abs(Ey)**2)
+        Ex /= (np.mean(mag) + 1e-8)
+        Ey /= (np.mean(mag) + 1e-8)
+
+    return Ex, Ey
+
+# 결과 실행 및 시각화
+Ex_final, Ey_final = run_simulation()
+intensity = np.abs(Ex_final)**2 + np.abs(Ey_final)**2
+
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.title("Polarization Intensity Map")
+plt.imshow(intensity, cmap='magma')
+plt.colorbar()
+
+plt.subplot(1, 2, 2)
+plt.title("Phase Topology (Ex)")
+plt.imshow(np.angle(Ex_final), cmap='twilight')
+plt.colorbar()
+plt.show()
