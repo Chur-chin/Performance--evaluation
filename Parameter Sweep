@@ -1,0 +1,60 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def simulate_with_params(chirality_val, steps=200, size=64):
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+
+    # 고정 파라미터
+    anisotropy = 1.1     # 액정 비등방성
+    berry_phase = 0.05    # 기하학적 위상 누적
+    feedback = 0.7        # Recursive echo 강도
+    
+    s3_trajectory = []
+
+    for t in range(steps):
+        # L/R Circular Polarization 분리
+        EL = Ex + 1j*Ey
+        ER = Ex - 1j*Ey
+        
+        # Chirality 파라미터 적용 (변수)
+        EL *= np.exp(1j * (berry_phase + chirality_val))
+        ER *= np.exp(1j * (berry_phase - chirality_val))
+        
+        # Propagation & Feedback
+        Ex_new = 0.5 * (EL + ER) * anisotropy
+        Ey_new = -0.5j * (EL - ER) / anisotropy
+        
+        Ex = (1 - feedback) * Ex + feedback * Ex_new
+        Ey = (1 - feedback) * Ey + feedback * Ey_new
+        
+        # Normalization[cite: 3]
+        norm = np.sqrt(np.abs(Ex)**2 + np.abs(Ey)**2)
+        Ex /= (np.mean(norm) + 1e-9); Ey /= (np.mean(norm) + 1e-9)
+
+        # Stokes S3 (L/R Circularity) 계산[cite: 3]
+        I = np.mean(np.abs(Ex)**2 + np.abs(Ey)**2)
+        S3 = np.mean(2 * np.imag(Ex * np.conj(Ey))) / I
+        s3_trajectory.append(S3)
+        
+    return s3_trajectory
+
+# 세 가지 케이스 비교 분석
+cases = [0.0, 0.05, 0.2] # Chirality 강도[cite: 3]
+colors = ['gray', 'blue', 'red']
+labels = ['No Chirality (Symmetric)', 'Weak Chirality', 'Strong Chirality']
+
+plt.figure(figsize=(10, 6))
+
+for c, color, label in zip(cases, colors, labels):
+    traj = simulate_with_params(c)
+    plt.plot(traj, color=color, label=label, lw=2)
+
+plt.axhline(0, color='black', linestyle='--', alpha=0.3)
+plt.title("Evolution of Polarization Attractor (S3 value)")
+plt.xlabel("Iteration Steps")
+plt.ylabel("S3 (Circular Polarization Degree)")
+plt.legend()
+plt.grid(True, alpha=0.2)
+plt.show()
