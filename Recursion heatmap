@@ -1,0 +1,63 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def measure_recovery_steps(feedback, anisotropy, steps=400, size=32):
+    # 초기화
+    Ex = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    Ey = (np.random.rand(size, size) - 0.5) + 1j*(np.random.rand(size, size) - 0.5)
+    
+    chirality_val = 0.1
+    berry_phase = 0.05
+    noise_step = 100
+    target_s3 = 1.0 # 목표 attractor
+    
+    recovery_time = steps - noise_step # 기본값 (회복 실패 시)
+
+    for t in range(steps):
+        # 100 step에서 노이즈 주입
+        if t == noise_step:
+            noise = (np.random.rand(size, size) - 0.5) * 8.0
+            Ex *= np.exp(1j * noise)
+            Ey *= np.exp(1j * noise)
+
+        # 물리 로직[cite: 4, 5]
+        EL, ER = Ex + 1j*Ey, Ex - 1j*Ey
+        EL *= np.exp(1j * (berry_phase + chirality_val))
+        ER *= np.exp(1j * (berry_phase - chirality_val))
+        
+        Ex_new = 0.5 * (EL + ER) * anisotropy
+        Ey_new = -0.5j * (EL - ER) / anisotropy
+        Ex = (1 - feedback) * Ex + feedback * Ex_new
+        Ey = (1 - feedback) * Ey + feedback * Ey_new
+        
+        norm = np.sqrt(np.abs(Ex)**2 + np.abs(Ey)**2)
+        Ex /= (np.mean(norm) + 1e-9); Ey /= (np.mean(norm) + 1e-9)
+
+        # 복원 여부 체크 (목표 S3의 90% 도달 시점)
+        if t > noise_step:
+            I = np.mean(np.abs(Ex)**2 + np.abs(Ey)**2)
+            S3 = np.mean(2 * np.imag(Ex * np.conj(Ey))) / I
+            if S3 > 0.9 * target_s3:
+                recovery_time = t - noise_step
+                break
+                
+    return recovery_time
+
+# 파라미터 범위 설정
+feedback_range = np.linspace(0.1, 0.9, 9)
+anisotropy_range = np.linspace(1.0, 2.0, 9)
+results = np.zeros((len(feedback_range), len(anisotropy_range)))
+
+for i, f in enumerate(feedback_range):
+    for j, a in enumerate(anisotropy_range):
+        results[i, j] = measure_recovery_steps(f, a)
+
+# 시각화
+plt.figure(figsize=(10, 8))
+sns.heatmap(results, annot=True, xticklabels=np.round(anisotropy_range, 2), 
+            yticklabels=np.round(feedback_range, 2), cmap="YlGnBu_r")
+plt.title("Recovery Steps (Lower is Faster)")
+plt.xlabel("Anisotropy Strength")
+plt.ylabel("Feedback Coefficient")
+plt.show()
